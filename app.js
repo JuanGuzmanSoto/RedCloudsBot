@@ -1,26 +1,44 @@
+const fs = require('fs');
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
-
-// Create a new client instance with the necessary intents and partials
+const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent, // Add this if you need the content of messages
+    GatewayIntentBits.MessageContent,
   ],
-  partials: [Partials.Message, Partials.Channel] // Needed for partial state messages
+  partials: [Partials.Message, Partials.Channel] 
 });
+
+client.commands = new Collection(); 
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+for (const file of commandFiles) {
+    const command = require(`./commands/${file}`);
+    client.commands.set(command.name, command);
+}
 
 client.once('ready', () => {
-    console.log('Ready!');
+    console.log('Ready');
+    console.log('ctrl + c to exit');
 });
 
-// Update the event name here to 'messageCreate' from 'message'
 client.on('messageCreate', message => {
-    console.log(message.content);
-    if (message.content === '!ping') { // Replace '!ping' with your command
-        message.channel.send('Pong.');
-    }
+  if (!message.content.startsWith('!') || message.author.bot) return;
+
+  const args = message.content.slice(1).trim().split(/ +/);
+  const commandName = args.shift().toLowerCase();
+
+  const command = client.commands.get(commandName);
+
+  if (!command) return;
+
+  try {
+      command.execute(message, args);
+  } catch (error) {
+      console.error(error);
+      message.reply('There was an error trying to execute that command!');
+  }
 });
+
 
 client.login(process.env.DISCORD_TOKEN);
