@@ -9,7 +9,7 @@ module.exports = {
             //Print all commands if none are specified. 
             data.push('Here\'s a list of all my commands:');
             data.push(commands.map(command => `\`${command.name}\``).join(', ')); // Use backticks for command formatting
-            data.push('\nYou can send `!help [command name]` to get info on a specific command!');
+            data.push('\nYou can send `+help [command name]` to get info on a specific command!');
         } else {
             //show details about the command. 
             const name = args[0].toLowerCase();

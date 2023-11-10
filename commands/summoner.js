@@ -1,32 +1,30 @@
 const fetch = require('node-fetch');
-const cheerio = require('cheerio');
 
 module.exports = {
     name: 'summoner',
-    description: 'Get information about a League of Legends summoner',
+    description: 'Get League of Legends summoner profile',
     async execute(message, args) {
         if (!args.length) {
-            return message.channel.send('You need to specify a summoner\'s name!');
+            return message.reply('You need to provide a summoner name.');
         }
 
-        const summonerName = args.join(' '); // Join the arguments in case the summoner name has spaces
-        const url = `https://www.op.gg/summoners/na/${encodeURIComponent(summonerName)}`;
+        const apiKey = process.env.RIOT_API_KEY; 
+        const summonerName = encodeURIComponent(args.join(' '));
+        const region = 'na1';
 
         try {
-            const response = await fetch(url);
-            const body = await response.text();
-            const $ = cheerio.load(body);
+            const response = await fetch(`https://${region}.api.riotgames.com/lol/summoner/v4/summoners/by-name/${summonerName}`, {
+                headers: {
+                    "X-Riot-Token": apiKey
+                }
+            });
 
-            // Use the correct selectors to find the rank, level, and winrate
-            // These are placeholder selectors; you'll need to replace them with the actual ones
-            const rank = $('div.tier').first().text().trim();
-            const level = $('div.level').text().trim();
-            const winrate = $('div.ratio').first().text().trim();
+            if (!response.ok) {
+                throw new Error(`Error fetching summoner data: ${response.statusText}`);
+            }
 
-            // Construct the reply
-            const reply = `${summonerName} - Rank: ${rank}, Level: ${level}, ${winrate}`;
-
-            // Send the message to the Discord channel
+            const summonerData = await response.json();
+            const reply = `Summoner Name: ${summonerData.name}, Level: ${summonerData.summonerLevel}`;
             message.channel.send(reply);
         } catch (error) {
             console.error(error);

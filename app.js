@@ -23,9 +23,9 @@ client.once('ready', () => {
 });
 
 client.on('messageCreate', message => {
-  if (!message.content.startsWith('!') || message.author.bot) return;
+  if (!message.content.startsWith('+') || message.author.bot) return;
 
-  const args = message.content.slice(1).trim().split(/ +/);
+  const args = message.content.slice('+'.length).trim().split(/ +/);
   const commandName = args.shift().toLowerCase();
 
   const command = client.commands.get(commandName);
