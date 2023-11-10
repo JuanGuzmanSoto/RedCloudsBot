@@ -1,7 +1,11 @@
 module.exports = {
     name:'ping',
     description: 'Ping command',
-    execute(message,args){
-        message.channel.send('Pong.');
+    async execute(message,args){
+        try{
+            await message.channel.send('Pong');
+        }catch(error){
+            console.error('Error sending message: ', error);
+        }
     },
 };
