@@ -1,89 +1,233 @@
 const fetch = require('node-fetch');
-const { EmbedBuilder,AttachmentBuilder  } = require('discord.js'); 
+const { ActionRowBuilder, ButtonBuilder, AttachmentBuilder, EmbedBuilder, ButtonStyle} = require('discord.js'); 
 const Canvas = require('canvas');
 const {registerFont, createCanvas } = require('canvas'); 
 registerFont('font/Consolas.ttf', {family: 'Consolas'});
+registerFont('font/CatCafe.ttf', {family: 'cat'});
+registerFont('font/mangat.ttf', {family: 'manga'});
+registerFont('font/impact.ttf', {family: 'impact'});
+registerFont('font/OtakuRantBold.ttf', {family: 'otaku'});
+registerFont('font/uchiyama.otf', {family: 'uchiyama'});
+registerFont('font/Skeina.otf', {family: 'Skeina'});
+registerFont('font/LEMONMILK-Bold.otf', {family: 'lemonmilk'});
 module.exports = {
+    fetchMatchHistory,
+    createMatchHistoryEmbed,
+    fetchSummonerData,
     name: 'summoner',
     description: 'Get League of Legends summoner profile',
     async execute(message, args) {
-        const processedArgs = preprocessArgs(args);
-        if (processedArgs.length<1) {
-            return message.reply('You need to provide a summoner name.');
-        }
+      const processedArgs = preprocessArgs(args);
+      if (processedArgs.length < 1) {
+        return message.reply('You need to provide a summoner name.');
+      }
+  
+      const apiKey = process.env.RIOT_API_KEY;
+      const region = 'na1'; //Summoner v4 API 
+      const region2 = 'americas'; //Match v5 API 
+      const championsData = await getChampionsData();
+      for (const summonerName of processedArgs) {
+        try {
+          const summonerData = await fetchSummonerData(summonerName, apiKey, region);
+          const rankedData = await fetchRankedData(summonerData.id, apiKey, region);
+          const soloDuoStats = rankedData.find(queue => queue.queueType === 'RANKED_SOLO_5x5') || {};
+          const championMastery = await fetchChampionMasteryData(summonerData.id,apiKey,region);
+          const { embed, attachment } = await createProfileEmbed(summonerData, soloDuoStats, championsData, apiKey, region); //
+          const row = new ActionRowBuilder()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('match_history')
+                .setLabel('Match History')
+                .setStyle(ButtonStyle.Primary)
+            );
+  
+            const profileMessage = await message.channel.send({ embeds: [embed], files: [attachment], components: [row] });
 
-        const apiKey = process.env.RIOT_API_KEY; 
-        const region = 'na1';
-        const embeds = [];
-        const championsData = await getChampionsData(); 
-        for (const summonerName of processedArgs) {
-            try {
-                // Fetch Summoner Information
-                const encodedName = encodeURIComponent(summonerName);
-                const summonerResponse = await fetch(`https://${region}.api.riotgames.com/lol/summoner/v4/summoners/by-name/${encodedName}`, {
-                    headers: { "X-Riot-Token": apiKey }
-                });
-                if (!summonerResponse.ok) {
-                    throw new Error(`Error fetching data for ${summonerName}: ${summonerResponse.statusText}`);
-                }
-                
-                //finding ranked data
-                const summonerData = await summonerResponse.json();
-                const rankedResponse = await fetch(`https://${region}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
-                    headers: { "X-Riot-Token": apiKey }
-                });
 
-                if (!rankedResponse.ok) {
-                    throw new Error(`Error fetching ranked data for ${summonerName}: ${rankedResponse.statusText}`);
-                }
+            // Create a collector for button interactions on this message
+            const filter = (i) => i.customId === 'match_history' && i.message.id === profileMessage.id;
+            const collector = profileMessage.createMessageComponentCollector({ filter, time: 15000 });
+            collector.on('collect', async (i) => {
+              });
 
-                //ranked stats
-                const rankedData = await rankedResponse.json();
-                const soloDuoStats = rankedData.find(queue => queue.queueType === 'RANKED_SOLO_5x5') || {};
+            collector.on('end', collected => console.log(`Collected ${collected.size} items`));
 
-                //finding champion data
-                const masteryResponse = await fetch (`https://${region}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-summoner/${summonerData.id}`, {
-                    headers: { "X-Riot-Token": apiKey }
-                });
-                
-                if(!masteryResponse.ok){
-                    throw new Error(`Error fetching champion mastery data for ${summonerName}: ${masteryResponse.statusText}`);
-                }
-                //Champion Mastery Data
-                const masteryData = await masteryResponse.json();
-                const topChampions = masteryData.slice(0, 3).map(mastery => {
-                    const champion = championsData[mastery.championId];
-                    const championIconUrl = `http://ddragon.leagueoflegends.com/cdn/11.24.1/img/champion/${champion.id}.png`;
-                    return { name: champion.name, iconUrl: championIconUrl };
-                });
-
-                //Gets Icons
-                const topChampionIconUrls = topChampions.map(champion => champion.iconUrl);
-                const summonerIconUrl = `https://ddragon.leagueoflegends.com/cdn/13.22.1/img/profileicon/${summonerData.profileIconId}.png`;
-                const rankIconUrl = getRankedIconUrl(soloDuoStats.tier);
-                
-                // Create combined image
-                const combinedImageBuffer = await createCombinedImage(summonerIconUrl, rankIconUrl, topChampionIconUrls, summonerData, soloDuoStats);
-                const attachment = new AttachmentBuilder(combinedImageBuffer, { name: 'profile-image.png' });
-                // Creating Embed
-                //reply  
-                const replyEmbed = new EmbedBuilder()
-                .setColor('#0099ff')
-                .setTitle(`${summonerData.name}'s Profile`)
-                .setImage('attachment://profile-image.png');
-
-                message.channel.send({ embeds: [replyEmbed], files: [attachment] });
-            } catch (error) {
-                console.error(error);
-                message.reply(`Failed to fetch information for ${summonerName}.`);
-                return;
-            }
-        }
-        if(embeds.length>0){
-        message.channel.send({embeds:embeds});
+        }catch (error) {
+            console.error(error);
+            message.reply(`Failed to fetch information for ${summonerName}.`);
         }
     }
+  }
 }
+//Summoner Data
+async function fetchSummonerData(summonerName, apiKey, region) {
+    const response = await fetch(`https://${region}.api.riotgames.com/lol/summoner/v4/summoners/by-name/${encodeURIComponent(summonerName)}`, {
+      headers: { "X-Riot-Token": apiKey }
+    });
+  
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Error fetching data for ${summonerName}: ${errorDetails}`);
+    }
+  
+    const data = await response.json();
+    return data; 
+}
+
+//Ranked Data
+async function fetchRankedData(summonerId, apiKey, region) {
+    const rankedResponse = await fetch(`https://${region}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerId}`, {
+      headers: { "X-Riot-Token": apiKey }
+    });
+  
+    if (!rankedResponse.ok) {
+      throw new Error(`Error fetching ranked data: ${rankedResponse.statusText}`);
+    }
+  
+    return await rankedResponse.json();
+  }
+
+//ChampionData
+  async function fetchChampionMasteryData(summonerId, apiKey, region) {
+  const masteryResponse = await fetch(`https://${region}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-summoner/${summonerId}`, {
+    headers: { "X-Riot-Token": apiKey }
+  });
+
+  if (!masteryResponse.ok) {
+    throw new Error(`Error fetching champion mastery data: ${masteryResponse.statusText}`);
+  }
+
+  return await masteryResponse.json();
+}
+
+//Match details. 
+async function getMatchDetails(matchId, apiKey, region) {
+    // Ensure that region is set to "AMERICAS" for match details API
+    const routingValue = (region === 'na1' || region === 'br1' || region === 'lan' || region === 'las' || region === 'oce') ? 'americas' : region;
+
+    const response = await fetch(`https://${routingValue}.api.riotgames.com/lol/match/v5/matches/${matchId}`, {
+      headers: { "X-Riot-Token": apiKey }
+    });
+  
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Error fetching match details for matchId ${matchId}: ${errorDetails}`);
+    }
+  
+    const matchDetails = await response.json();
+    return matchDetails;
+}
+
+  async function getMatchlistByPuuid(puuid, apiKey) {
+    const response = await fetch(`https://americas.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=5`, {
+      headers: {
+        "X-Riot-Token": apiKey
+      }
+    });
+  
+    if (!response.ok) {
+      const errorDetails = await response.json();
+      throw new Error(`Error fetching matchlist: ${errorDetails.status.message}`);
+    }
+    return await response.json();
+  }
+//Match history 
+async function fetchMatchHistory(puuid, apiKey, region) {
+    try {
+      const matchIds = await getMatchlistByPuuid(puuid, apiKey);
+      const matchDetailsPromises = matchIds.map(matchId => getMatchDetails(matchId, apiKey, region));
+      const matchesDetails = await Promise.all(matchDetailsPromises);
+
+      // Map the match details to the format expected by createMatchHistoryEmbed
+      const matchHistoryData = matchesDetails.map(matchDetails => {
+        // Find the participant corresponding to the puuid
+        const participant = matchDetails.info.participants.find(p => p.puuid === puuid);
+
+        // If participant is not found, return an object with placeholder values
+        if (!participant) {
+          return {
+            gameId: matchDetails.info.gameId || 'Unknown',
+            championName: 'Unknown',
+            kills: 'N/A',
+            deaths: 'N/A',
+            assists: 'N/A',
+            timestamp: matchDetails.info.gameStartTimestamp || new Date().getTime()
+          };
+        }
+        return {
+          gameId: matchDetails.info.gameId || 'Unknown',
+          championName: participant.championName || 'Unknown',
+          kills: participant.kills !== undefined ? participant.kills : 'N/A',
+          deaths: participant.deaths !== undefined ? participant.deaths : 'N/A',
+          assists: participant.assists !== undefined ? participant.assists : 'N/A',
+          timestamp: matchDetails.info.gameStartTimestamp || new Date().getTime()
+        };
+      });
+
+      return matchHistoryData;
+    } catch (error) {
+      console.error(`Error fetching match history: ${error}`);
+      throw error;
+    }
+}
+
+
+function createMatchHistoryEmbed(matchHistoryData) {
+    const embeds = [];
+    matchHistoryData.forEach(match => {
+        const gameId = match.gameId || 'Unknown';
+        const championName = match.championName || 'Unknown';
+        const kda = (match.kills !== undefined && match.deaths !== undefined && match.assists !== undefined) 
+                    ? `${match.kills}/${match.deaths}/${match.assists}` 
+                    : 'N/A';
+        const timestamp = match.timestamp ? new Date(match.timestamp) : new Date();
+        const embed = new EmbedBuilder()
+            .setColor('#0099ff')
+            .setTitle(`Game ID: ${gameId}`)
+            .addFields([
+                { name: 'Champion', value: championName, inline: true },
+                { name: 'KDA', value: kda, inline: true }
+            ]);
+        if (match.championImageUrl) {
+            embed.setThumbnail(match.championImageUrl);
+        }
+        embed.setTimestamp(timestamp);
+        embeds.push(embed);
+    });
+
+    return embeds.length > 0 ? embeds : [new EmbedBuilder().setTitle('No recent matches found')];
+}
+
+
+async function createProfileEmbed(summonerData, soloDuoStats, championsData, apiKey, region) {
+    // Fetch top champions based on mastery
+    const masteryData = await fetchChampionMasteryData(summonerData.id, apiKey, region);
+    const topChampions = masteryData.slice(0, 3).map(mastery => {
+      const champion = championsData[mastery.championId];
+      const championIconUrl = `http://ddragon.leagueoflegends.com/cdn/11.24.1/img/champion/${champion.id}.png`;
+      return { name: champion.name, iconUrl: championIconUrl };
+    });
+    const topChampionIconUrls = topChampions.map(champion => champion.iconUrl);
+    const summonerIconUrl = `https://ddragon.leagueoflegends.com/cdn/13.22.1/img/profileicon/${summonerData.profileIconId}.png`;
+    const rankIconUrl = getRankedIconUrl(soloDuoStats.tier);
+  
+    // Create combined image buffer
+    const combinedImageBuffer = await createSummonerProfileCanvas(summonerIconUrl, rankIconUrl, topChampionIconUrls, summonerData, soloDuoStats);
+    const attachment = new AttachmentBuilder(combinedImageBuffer, { name: 'profile-image.png' });
+  
+    // Create profile embed
+    const profileEmbed = new EmbedBuilder()
+      .setColor('#0099ff')
+      .setTitle(`${summonerData.name}'s Profile`)
+      .setImage('attachment://profile-image.png');
+  
+    return { embed: profileEmbed, attachment: attachment };
+  }
+async function createMatchHistoryCanvas(summonerId, apiKey, region) {
+    
+  }
+
+
 //Gets the rank icon. 
 function getRankedIconUrl(rank){
     const rankIcons = {
@@ -113,7 +257,9 @@ function getRankedIconUrl(rank){
     'https://static.wikia.nocookie.net/leagueoflegends/images/1/13/Season_2023_-_Unranked.png/revision/latest/scale-to-width-down/130?cb=20231007211937';
 
 }
-//Checks if the argument contained quotations to store as a single string. 
+
+
+//Checks if the argument contained quotations to store as a single string. (Spaced usernames) 
 function preprocessArgs(args){
     let processedArgs = []; 
     let currentArgs = '';
@@ -140,6 +286,8 @@ function preprocessArgs(args){
     }
     return processedArgs;
 }
+
+
 //gets the champion data. 
 async function getChampionsData() {
     try {
@@ -167,20 +315,23 @@ async function getChampionsData() {
     }
 }
 
+//function for restraining text within canvas bounds. 
 function fitTextOnCanvas(ctx,text,maxWidth,x,y,minFontSize=12){
     let fontSize = 31.5;
-    ctx.font = `bold ${fontSize}px Consolas`;
+    ctx.font = `bold ${fontSize}px lemonmilk`;
     while(ctx.measureText(text).width > maxWidth&&fontSize>minFontSize){
         fontSize--;
-        ctx.font = `bold ${fontSize}px Consolas`;
+        ctx.font = `bold ${fontSize}px lemonmilk`;
     }
     if(fontSize>minFontSize){
         ctx.fillText(text,x,y);
     }else{
-        console.log("Textis too long and font size is too small"); 
+        console.log("Text is too long and font size is too small"); 
     }
 }
-async function createCombinedImage(summonerIconUrl, rankIconUrl, championIconUrls, summonerData, soloDuoStats) {
+
+
+async function createSummonerProfileCanvas(summonerIconUrl, rankIconUrl, championIconUrls, summonerData, soloDuoStats) {
     // Pre-calculate canvas dimensions
     const summonerIconSize = 160;
     const rankIconSize = 180;
