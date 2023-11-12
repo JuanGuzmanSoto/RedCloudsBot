@@ -11,7 +11,8 @@ module.exports = {
     createProfileEmbed,
     createMatchHistoryCanvas,
     fitTextOnCanvas,
-    createSummonerProfileCanvas
+    createSummonerProfileCanvas,
+    
 }
 
 
@@ -58,7 +59,7 @@ async function createSummonerProfileCanvas(summonerIconUrl, rankIconUrl, champio
     ctx.fillStyle = '#ffffff';
 
     // Add text
-    fitTextOnCanvas(ctx, `Level: ${summonerData.summonerLevel} | Wins: ${soloDuoStats.wins} | Losses: ${soloDuoStats.losses} | Win Rate: ${((soloDuoStats.wins / (soloDuoStats.wins + soloDuoStats.losses)) * 100).toFixed(1)}%`, canvasWidth - 40, 20, adjustedTextStartY);
+    fitTextOnCanvas(ctx, `Rank: ${soloDuoStats.tier} ${soloDuoStats.rank}| Level: ${summonerData.summonerLevel} | Wins: ${soloDuoStats.wins} | Losses: ${soloDuoStats.losses} | Win Rate: ${((soloDuoStats.wins / (soloDuoStats.wins + soloDuoStats.losses)) * 100).toFixed(1)}%`, canvasWidth - 40, 20, adjustedTextStartY);
 
     return canvas.toBuffer();
 }
@@ -84,7 +85,7 @@ function fitTextOnCanvas(ctx,text,maxWidth,x,y,minFontSize=12){
 async function createMatchHistoryCanvas(matchHistoryData, championsData) {
     // Constants for layout
     const sectionHeight = 140; // The height of each match section, increased to accommodate more text
-    const spacing = 20; // Spacing between each match section
+    const spacing = 10; // Spacing between each match section
     const canvasWidth = 800; // Width of the canvas
 
     // Calculate the total height of the canvas
@@ -165,7 +166,7 @@ async function createProfileEmbed(summonerData, soloDuoStats, championsData, api
   }
 
 
-  //Match History Embedding, (Canvas output) 
+  //Match History Embedding
   function createMatchHistoryEmbed(matchHistoryData) {
     const embeds = [];
     matchHistoryData.forEach((match, index) => { 

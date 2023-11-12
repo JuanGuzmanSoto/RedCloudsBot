@@ -1,6 +1,6 @@
 const fs = require('fs');
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, Collection,AttachmentBuilder  } = require('discord.js');
+const { Client, GatewayIntentBits, ButtonStyle, Collection,AttachmentBuilder,ButtonBuilder,ActionRowBuilder  } = require('discord.js');
 const { createMatchHistoryCanvas } = require('./commands/sub-commands/building.js');
 const {fetchMatchHistory,fetchSummonerData,getChampionsData} = require('./commands/sub-commands/leagueAPI.js')
 const summonerNames = new Map(); 
@@ -72,9 +72,20 @@ client.on('interactionCreate', async interaction => {
     //Canvas
     const matchHistoryBuffer = await createMatchHistoryCanvas(matchHistoryData, championsData); 
     const matchHistoryAttachment = new AttachmentBuilder(matchHistoryBuffer, { name: 'match-history.png' });
-    await interaction.editReply({ files: [matchHistoryAttachment], embeds: [] });
+    const disabledButton = new ButtonBuilder()
+    .setCustomId('match_history')
+    .setLabel('Match History')
+    .setStyle(ButtonStyle.Primary)
+    .setDisabled(true);
+  
+    const disabledRow = new ActionRowBuilder().addComponents(disabledButton);
 
-
+  
+    await interaction.editReply({ 
+      files: [matchHistoryAttachment], 
+      embeds: [], 
+      components: [disabledRow] 
+    });
   } catch (error) {
     console.error('Error handling the match history button:', error);
     const errorMessage = 'There was an error processing your request.';

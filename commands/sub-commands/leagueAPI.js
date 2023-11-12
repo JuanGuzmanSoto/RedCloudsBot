@@ -85,7 +85,7 @@ async function getMatchDetails(matchId, apiKey, region) {
 
 
 async function getMatchlistByPuuid(puuid, apiKey) {
-    const response = await fetch(`https://americas.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=5`, {
+    const response = await fetch(`https://americas.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=10`, {
       headers: {
         "X-Riot-Token": apiKey
       }
