@@ -59,7 +59,7 @@ async function createSummonerProfileCanvas(summonerIconUrl, rankIconUrl, champio
     ctx.fillStyle = '#ffffff';
 
     // Add text
-    fitTextOnCanvas(ctx, `Rank: ${soloDuoStats.tier} ${soloDuoStats.rank}| Level: ${summonerData.summonerLevel} | Wins: ${soloDuoStats.wins} | Losses: ${soloDuoStats.losses} | Win Rate: ${((soloDuoStats.wins / (soloDuoStats.wins + soloDuoStats.losses)) * 100).toFixed(1)}%`, canvasWidth - 40, 20, adjustedTextStartY);
+    fitTextOnCanvas(ctx, `Rank: ${soloDuoStats.tier} ${soloDuoStats.rank} | Level: ${summonerData.summonerLevel} | Wins: ${soloDuoStats.wins} | Losses: ${soloDuoStats.losses} | Win Rate: ${((soloDuoStats.wins / (soloDuoStats.wins + soloDuoStats.losses)) * 100).toFixed(1)}%`, canvasWidth - 40, 20, adjustedTextStartY);
 
     return canvas.toBuffer();
 }
