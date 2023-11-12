@@ -2,6 +2,8 @@ const fetch = require('node-fetch');
 const { ActionRowBuilder, ButtonBuilder, AttachmentBuilder, EmbedBuilder, ButtonStyle} = require('discord.js'); 
 const Canvas = require('canvas');
 const {registerFont} = require('canvas'); 
+const { client } = require('../app.js');
+const messageCollectors = require('./sub-commands/messageCollectors.js');
 const {fetchChampionMasteryData,
     fetchMatchHistory,
     fetchSummonerData,
@@ -22,7 +24,7 @@ module.exports = {
       if (processedArgs.length < 1) {
         return message.reply('You need to provide a summoner name.');
       }
-  
+
       const apiKey = process.env.RIOT_API_KEY;
       const region = 'na1'; //Summoner v4 API 
       const championsData = await getChampionsData();
@@ -40,13 +42,14 @@ module.exports = {
                 .setStyle(ButtonStyle.Primary)
             );
             const profileMessage = await message.channel.send({ embeds: [embed], files: [attachment], components: [row] });
-            // Create a collector for button interactions on this message
             const filter = (i) => i.customId === 'match_history' && i.message.id === profileMessage.id;
-            const collector = profileMessage.createMessageComponentCollector({ filter, time: 15000 });
+            const collector = profileMessage.createMessageComponentCollector({ filter, time: 6000 });
+            messageCollectors.set(profileMessage.id, { collector, userId: message.author.id });
             collector.on('collect', async (i) => {
               });
-            collector.on('end', collected => console.log(`Collected ${collected.size} items`));
-
+              collector.on('end', collected => {
+                messageCollectors.delete(profileMessage.id); // Using the same map as when setting the collector
+            });
         }catch (error) {
             console.error(error);
             message.reply(`Failed to fetch information for ${summonerName}.`);

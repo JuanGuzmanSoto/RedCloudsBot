@@ -8,7 +8,8 @@ const client = new Client({
     [GatewayIntentBits.Guilds, 
     GatewayIntentBits.GuildMessages, 
     GatewayIntentBits.MessageContent] });
-
+    const messageCollectors = require('./commands/sub-commands/messageCollectors.js');
+    client.messageCollectors = messageCollectors;
 client.commands = new Collection(); 
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
@@ -45,14 +46,14 @@ client.on('messageCreate', message => {
 
 client.on('interactionCreate', async interaction => {
   if (!interaction.isButton() || interaction.customId !== 'match_history') return;
-
-  // Get the summoner name and original user ID from the map
+  
+  const collectorObject = client.messageCollectors.get(interaction.message.id);
   const summonerDataStored = summonerNames.get(interaction.user.id);
-
-  // Check if the summoner name is stored and if the interaction user is the same as the one who issued the command
-  if (!summonerDataStored || interaction.user.id !== summonerDataStored.userId) {
-    await interaction.reply({ content: "You do not have permission to view this match history.", ephemeral: true });
-    return;
+  const userIdAllowed = collectorObject ? collectorObject.userId : null;
+  
+  if (!userIdAllowed || interaction.user.id !== userIdAllowed) {
+      await interaction.reply({ content: "You do not have permission.", ephemeral: true });
+      return;
   }
 
   try {
