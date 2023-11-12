@@ -1,5 +1,14 @@
 //leagueAPI fetching
-
+module.exports = {
+  fetchChampionMasteryData,
+  fetchMatchHistory,
+  getMatchDetails,
+  getMatchlistByPuuid,
+  fetchSummonerData,
+  fetchRankedData,
+  getChampionsData,
+  getRankedIconUrl
+};
 const queueIdMap = {
     400: 'Normal Draft',
     420: 'Ranked Solo',
@@ -200,16 +209,3 @@ function getRankedIconUrl(rank){
     'https://static.wikia.nocookie.net/leagueoflegends/images/1/13/Season_2023_-_Unranked.png/revision/latest/scale-to-width-down/130?cb=20231007211937';
 
 }
-
-
-
-module.exports = {
-    fetchChampionMasteryData,
-    fetchMatchHistory,
-    getMatchDetails,
-    getMatchlistByPuuid,
-    fetchSummonerData,
-    fetchRankedData,
-    getChampionsData,
-    getRankedIconUrl
-};

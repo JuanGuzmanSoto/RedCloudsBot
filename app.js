@@ -1,7 +1,8 @@
 const fs = require('fs');
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, Collection,AttachmentBuilder  } = require('discord.js');
-const { fetchMatchHistory,fetchSummonerData,createMatchHistoryCanvas,getChampionsData } = require('./commands/summoner.js');
+const { createMatchHistoryCanvas } = require('./commands/sub-commands/building.js');
+const {fetchMatchHistory,fetchSummonerData,getChampionsData} = require('./commands/sub-commands/leagueAPI.js')
 const summonerNames = new Map(); 
 const client = new Client({ 
   intents:
@@ -44,16 +45,17 @@ client.on('messageCreate', message => {
   }
 });
 
+//Button interaction
 client.on('interactionCreate', async interaction => {
   if (!interaction.isButton() || interaction.customId !== 'match_history') return;
   
   const collectorObject = client.messageCollectors.get(interaction.message.id);
   const summonerDataStored = summonerNames.get(interaction.user.id);
   const userIdAllowed = collectorObject ? collectorObject.userId : null;
-  
+  //User pressed is the same. 
   if (!userIdAllowed || interaction.user.id !== userIdAllowed) {
       await interaction.reply({ content: "You do not have permission.", ephemeral: true });
-      return;
+      return; 
   }
 
   try {
@@ -61,17 +63,21 @@ client.on('interactionCreate', async interaction => {
     // Use the stored summonerName from the map
     const { summonerName } = summonerDataStored;
     const championsData = await getChampionsData();
-    const region = 'na1';
+
+    //User PUUID (Match V5 cannot use ID needs PUUID) 
+    const region = 'na1'; //bruteforced. 
     const summonerData = await fetchSummonerData(summonerName, process.env.RIOT_API_KEY, region);
     const puuid = summonerData.puuid;
     const matchHistoryData = await fetchMatchHistory(puuid, process.env.RIOT_API_KEY, region);
-
+    //Canvas
     const matchHistoryBuffer = await createMatchHistoryCanvas(matchHistoryData, championsData); 
     const matchHistoryAttachment = new AttachmentBuilder(matchHistoryBuffer, { name: 'match-history.png' });
     await interaction.editReply({ files: [matchHistoryAttachment], embeds: [] });
+
+
   } catch (error) {
     console.error('Error handling the match history button:', error);
-    const errorMessage = 'There was an error processing your request. Please try again later.';
+    const errorMessage = 'There was an error processing your request.';
     if (interaction.deferred || interaction.replied) {
       await interaction.editReply({ content: errorMessage, ephemeral: true });
     } else {
