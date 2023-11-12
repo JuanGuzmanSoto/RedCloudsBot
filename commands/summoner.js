@@ -2,6 +2,13 @@ const fetch = require('node-fetch');
 const { ActionRowBuilder, ButtonBuilder, AttachmentBuilder, EmbedBuilder, ButtonStyle} = require('discord.js'); 
 const Canvas = require('canvas');
 const {registerFont, createCanvas } = require('canvas'); 
+const queueIdMap = {
+    400: 'Normal Draft',
+    420: 'Ranked Solo',
+    430: 'Normal Blind',
+    440: 'Ranked Flex',
+    450: 'ARAM'
+}
 registerFont('font/Consolas.ttf', {family: 'Consolas'});
 registerFont('font/CatCafe.ttf', {family: 'cat'});
 registerFont('font/mangat.ttf', {family: 'manga'});
@@ -24,14 +31,12 @@ module.exports = {
   
       const apiKey = process.env.RIOT_API_KEY;
       const region = 'na1'; //Summoner v4 API 
-      const region2 = 'americas'; //Match v5 API 
       const championsData = await getChampionsData();
       for (const summonerName of processedArgs) {
         try {
           const summonerData = await fetchSummonerData(summonerName, apiKey, region);
           const rankedData = await fetchRankedData(summonerData.id, apiKey, region);
           const soloDuoStats = rankedData.find(queue => queue.queueType === 'RANKED_SOLO_5x5') || {};
-          const championMastery = await fetchChampionMasteryData(summonerData.id,apiKey,region);
           const { embed, attachment } = await createProfileEmbed(summonerData, soloDuoStats, championsData, apiKey, region); //
           const row = new ActionRowBuilder()
             .addComponents(
@@ -134,40 +139,51 @@ async function getMatchDetails(matchId, apiKey, region) {
 //Match history 
 async function fetchMatchHistory(puuid, apiKey, region) {
     try {
-      const matchIds = await getMatchlistByPuuid(puuid, apiKey);
-      const matchDetailsPromises = matchIds.map(matchId => getMatchDetails(matchId, apiKey, region));
-      const matchesDetails = await Promise.all(matchDetailsPromises);
+        const matchIds = await getMatchlistByPuuid(puuid, apiKey);
+        const matchDetailsPromises = matchIds.map(matchId => getMatchDetails(matchId, apiKey, region));
+        const matchesDetails = await Promise.all(matchDetailsPromises);
 
-      // Map the match details to the format expected by createMatchHistoryEmbed
-      const matchHistoryData = matchesDetails.map(matchDetails => {
-        // Find the participant corresponding to the puuid
-        const participant = matchDetails.info.participants.find(p => p.puuid === puuid);
+        // Map the match details to the format expected by createMatchHistoryEmbed
+        const matchHistoryData = matchesDetails.map(matchDetails => {
+            // Find the participant corresponding to the puuid
+            const participant = matchDetails.info.participants.find(p => p.puuid === puuid);
 
-        // If participant is not found, return an object with placeholder values
-        if (!participant) {
-          return {
-            gameId: matchDetails.info.gameId || 'Unknown',
-            championName: 'Unknown',
-            kills: 'N/A',
-            deaths: 'N/A',
-            assists: 'N/A',
-            timestamp: matchDetails.info.gameStartTimestamp || new Date().getTime()
-          };
-        }
-        return {
-          gameId: matchDetails.info.gameId || 'Unknown',
-          championName: participant.championName || 'Unknown',
-          kills: participant.kills !== undefined ? participant.kills : 'N/A',
-          deaths: participant.deaths !== undefined ? participant.deaths : 'N/A',
-          assists: participant.assists !== undefined ? participant.assists : 'N/A',
-          timestamp: matchDetails.info.gameStartTimestamp || new Date().getTime()
-        };
-      });
+            // Determine the outcome by looking at the team's win property
+            const team = matchDetails.info.teams.find(t => t.teamId === participant.teamId);
+            const outcome = team && team.win ? 'Win' : 'Loss';
+            const queueType = queueIdMap[matchDetails.info.queueId] || 'Other/Custom Game';
 
-      return matchHistoryData;
+            // Extract the game mode
+
+            // If participant is not found, return an object with placeholder values
+            if (!participant) {
+                return {
+                    gameId: matchDetails.info.gameId || 'Unknown',
+                    championName: 'Unknown',
+                    kills: 'N/A',
+                    deaths: 'N/A',
+                    assists: 'N/A',
+                    timestamp: matchDetails.info.gameStartTimestamp || new Date().getTime(),
+                    outcome: 'Unknown',
+                    queueId: queueId
+                };
+            }
+            return {
+                gameId: matchDetails.info.gameId || 'Unknown',
+                championName: participant.championName || 'Unknown',
+                kills: participant.kills !== undefined ? participant.kills : 'N/A',
+                deaths: participant.deaths !== undefined ? participant.deaths : 'N/A',
+                assists: participant.assists !== undefined ? participant.assists : 'N/A',
+                timestamp: matchDetails.info.gameStartTimestamp || new Date().getTime(),
+                outcome: outcome,
+                queueType:queueType
+            };
+        });
+
+        return matchHistoryData;
     } catch (error) {
-      console.error(`Error fetching match history: ${error}`);
-      throw error;
+        console.error(`Error fetching match history: ${error}`);
+        throw error;
     }
 }
 
@@ -180,16 +196,24 @@ function createMatchHistoryEmbed(matchHistoryData) {
         const kda = (match.kills !== undefined && match.deaths !== undefined && match.assists !== undefined) 
                     ? `${match.kills}/${match.deaths}/${match.assists}` 
                     : 'N/A';
+        const outcome = match.outcome || 'Unknown';
+        const queueType = match.queueType || 'Unknown';
         const timestamp = match.timestamp ? new Date(match.timestamp) : new Date();
+
+        // Set color based on outcome
+        const color = outcome === 'Win' ? '#6495ED' : '#9A2A2A'; // Blue for win, red for loss
+
         const embed = new EmbedBuilder()
-            .setColor('#0099ff')
+            .setColor(color) // Use the color variable here
             .setTitle(`Game ID: ${gameId}`)
             .addFields([
                 { name: 'Champion', value: championName, inline: true },
-                { name: 'KDA', value: kda, inline: true }
+                { name: 'KDA', value: kda, inline: true },
+                { name: 'Outcome', value: outcome, inline: true }, // Add outcome field to embed
+                { name: 'Queue Type', value: queueType, inline: true }
             ]);
-        if (match.championImageUrl) {
-            embed.setThumbnail(match.championImageUrl);
+        if (championName) {
+            embed.setThumbnail(`http://ddragon.leagueoflegends.com/cdn/11.24.1/img/champion/${championName}.png`);
         }
         embed.setTimestamp(timestamp);
         embeds.push(embed);
@@ -197,7 +221,6 @@ function createMatchHistoryEmbed(matchHistoryData) {
 
     return embeds.length > 0 ? embeds : [new EmbedBuilder().setTitle('No recent matches found')];
 }
-
 
 async function createProfileEmbed(summonerData, soloDuoStats, championsData, apiKey, region) {
     // Fetch top champions based on mastery
@@ -223,9 +246,59 @@ async function createProfileEmbed(summonerData, soloDuoStats, championsData, api
   
     return { embed: profileEmbed, attachment: attachment };
   }
-async function createMatchHistoryCanvas(summonerId, apiKey, region) {
-    
-  }
+async function createMatchHistoryCanvas(matchHistoryData, championsData) {
+    // Constants for layout
+    const sectionHeight = 120; // The height of each match section
+    const spacing = 10; // Spacing between each match section
+    const canvasWidth = 800; // Width of the canvas
+
+    // Calculate the total height of the canvas
+    const canvasHeight = (sectionHeight + spacing) * matchHistoryData.length;
+
+    // Create the canvas
+    const canvas = Canvas.createCanvas(canvasWidth, canvasHeight);
+    const ctx = canvas.getContext('2d');
+
+    // Set a background color
+    ctx.fillStyle = '#202225'; // Discord dark theme background color
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // Set text style
+    ctx.font = '18px Arial';
+    ctx.fillStyle = '#FFFFFF'; // White text color
+
+    // Load and draw each match section
+    for (let i = 0; i < matchHistoryData.length; i++) {
+        const match = matchHistoryData[i];
+        const yPosition = i * (sectionHeight + spacing);
+
+        // Set colors based on win/loss
+        ctx.fillStyle = match.outcome === 'Win' ? '#0099ff' : '#ff0000';
+        // Draw section background
+        ctx.fillRect(0, yPosition, canvasWidth, sectionHeight);
+
+        // Reset text color for drawing text
+        ctx.fillStyle = '#FFFFFF';
+
+        // Load the champion icon
+        const champion = championsData[match.championName];
+        const championIconUrl = `http://ddragon.leagueoflegends.com/cdn/11.24.1/img/champion/${champion}.png`;
+        const championIcon = await Canvas.loadImage(championIconUrl);
+
+        // Draw the champion icon
+        const iconSize = 100; // Example size, you may adjust
+        ctx.drawImage(championIcon, 10, yPosition + 10, iconSize, iconSize);
+
+        // Draw the match text
+        const textStartX = iconSize + 20;
+        ctx.fillText(`Game ID: ${match.gameId}`, textStartX, yPosition + 30);
+        ctx.fillText(`Champion: ${match.championName}`, textStartX, yPosition + 60);
+        ctx.fillText(`KDA: ${match.kills}/${match.deaths}/${match.assists}`, textStartX, yPosition + 90);
+    }
+
+    // Return the canvas buffer
+    return canvas.toBuffer();
+}
 
 
 //Gets the rank icon. 
