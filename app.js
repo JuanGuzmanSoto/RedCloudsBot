@@ -1,7 +1,7 @@
 const fs = require('fs');
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, Collection,  } = require('discord.js');
-const { fetchMatchHistory, createMatchHistoryEmbed,fetchSummonerData } = require('./commands/summoner.js');
+const { Client, GatewayIntentBits, Partials, Collection,AttachmentBuilder  } = require('discord.js');
+const { fetchMatchHistory,fetchSummonerData,createMatchHistoryCanvas,getChampionsData } = require('./commands/summoner.js');
 const summonerNames = new Map(); 
 const client = new Client({ 
   intents:
@@ -29,7 +29,8 @@ client.on('messageCreate', message => {
 
   if (commandName === 'summoner') {
     const summonerName = args.join(' '); // Join the args back in case the summoner name has spaces
-    summonerNames.set(message.author.id, summonerName);
+    summonerNames.set(message.author.id, { summonerName: summonerName, userId: message.author.id });
+    
   }
   const command = client.commands.get(commandName);
 
@@ -45,29 +46,35 @@ client.on('messageCreate', message => {
 client.on('interactionCreate', async interaction => {
   if (!interaction.isButton() || interaction.customId !== 'match_history') return;
 
-  try {
-    // Acknowledge the interaction first
-    await interaction.deferUpdate();
+  // Get the summoner name and original user ID from the map
+  const summonerDataStored = summonerNames.get(interaction.user.id);
 
-    // Fetch necessary data and process it
-    const summonerName = summonerNames.get(interaction.user.id);
-    if (!summonerName) {
-      await interaction.editReply({ content: "Summoner name not found. Please use the command again.", ephemeral: true });
-      return;
-    }
+  // Check if the summoner name is stored and if the interaction user is the same as the one who issued the command
+  if (!summonerDataStored || interaction.user.id !== summonerDataStored.userId) {
+    await interaction.reply({ content: "You do not have permission to view this match history.", ephemeral: true });
+    return;
+  }
+
+  try {
+    await interaction.deferUpdate();
+    // Use the stored summonerName from the map
+    const { summonerName } = summonerDataStored;
+    const championsData = await getChampionsData();
     const region = 'na1';
     const summonerData = await fetchSummonerData(summonerName, process.env.RIOT_API_KEY, region);
     const puuid = summonerData.puuid;
-    const matchHistoryData = await fetchMatchHistory(puuid, process.env.RIOT_API_KEY,region);
-    const matchHistoryEmbed = createMatchHistoryEmbed(matchHistoryData);
-    // Send the actual response
-    await interaction.editReply({ embeds: matchHistoryEmbed });
+    const matchHistoryData = await fetchMatchHistory(puuid, process.env.RIOT_API_KEY, region);
+
+    const matchHistoryBuffer = await createMatchHistoryCanvas(matchHistoryData, championsData); 
+    const matchHistoryAttachment = new AttachmentBuilder(matchHistoryBuffer, { name: 'match-history.png' });
+    await interaction.editReply({ files: [matchHistoryAttachment], embeds: [] });
   } catch (error) {
     console.error('Error handling the match history button:', error);
+    const errorMessage = 'There was an error processing your request. Please try again later.';
     if (interaction.deferred || interaction.replied) {
-      await interaction.editReply({ content: 'There was an error processing your request.', ephemeral: true });
+      await interaction.editReply({ content: errorMessage, ephemeral: true });
     } else {
-      await interaction.reply({ content: 'There was an error processing your request.', ephemeral: true });
+      await interaction.reply({ content: errorMessage, ephemeral: true });
     }
   }
 });
