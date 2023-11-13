@@ -24,29 +24,25 @@ async function fetchPlayerStatus(summonerId, apiKey, region) {
   const response = await fetch(`https://${region}.api.riotgames.com/lol/spectator/v4/active-games/by-summoner/${encodeURIComponent(summonerId)}`, {
       headers: {"X-Riot-Token": apiKey}
   });
-  if (response.status === 404) {
-      return null;
+  const responseBody = await response.text(); // Get response body as text
+
+  if (!response.ok && response.status !== 404) {
+      throw new Error(`Error: ${responseBody}`);
   }
+  return response.ok ? JSON.parse(responseBody) : null;
+}
+//Summoner Data
+async function fetchSummonerData(summonerName, apiKey, region) {
+  const response = await fetch(`https://${region}.api.riotgames.com/lol/summoner/v4/summoners/by-name/${encodeURIComponent(summonerName)}`, {
+      headers: { "X-Riot-Token": apiKey }
+  });
+
   if (!response.ok) {
-      const errorDetails = await response.text();
-      throw new Error(`Error fetching data for summoner ID ${summonerId}: ${errorDetails}`);
+      throw new Error(`Failed to fetch summoner data for ${summonerName}`);
   }
 
   const data = await response.json();
-  return data;
-}
-
-//Summoner Data
-async function fetchSummonerData(summonerName, apiKey, region) {
-    const response = await fetch(`https://${region}.api.riotgames.com/lol/summoner/v4/summoners/by-name/${encodeURIComponent(summonerName)}`, {
-      headers: { "X-Riot-Token": apiKey }
-    });
-    const responseBody = await response.text();
-    if (!response.ok&&response.status!==404) {
-      throw new Error('Error: ${responseBody');
-    }
-  
-    return response.ok ? JSON.parse(responseBody) : null;
+  return data; 
 }
 
 
