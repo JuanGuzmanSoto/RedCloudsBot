@@ -15,9 +15,8 @@ module.exports = {
       const apiKey = process.env.RIOT_API_KEY;
       const region = 'na1'; //Summoner v4 API 
       const championsData = await getChampionsData();
-      for (const summonerName of processedArgs) {
         try {
-          const summonerData = await fetchSummonerData(summonerName, apiKey, region);
+          const summonerData = await fetchSummonerData(processedArgs, apiKey, region);
           const rankedData = await fetchRankedData(summonerData.id, apiKey, region);
           const soloDuoStats = rankedData.find(queue => queue.queueType === 'RANKED_SOLO_5x5') || {};
           const { embed, attachment } = await createProfileEmbed(summonerData, soloDuoStats, championsData, apiKey, region); //
@@ -39,8 +38,8 @@ module.exports = {
             });
         }catch (error) {
             console.error(error);
-            message.reply(`Failed to fetch information for ${summonerName}.`);
+            message.reply(`Failed to fetch information for ${processedArgs}.`);
         }
-    }
+
   }
 }

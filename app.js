@@ -3,6 +3,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, ButtonStyle, Collection,AttachmentBuilder,ButtonBuilder,ActionRowBuilder  } = require('discord.js');
 const { createMatchHistoryCanvas } = require('./commands/sub-commands/building.js');
 const {fetchMatchHistory,fetchSummonerData,getChampionsData} = require('./commands/sub-commands/leagueAPI.js')
+const {preprocessArgs} = require('./commands/sub-commands/processArgs.js');
 const summonerNames = new Map(); 
 const client = new Client({ 
   intents:
@@ -22,7 +23,7 @@ client.once('ready', () => {
     console.log('Ready');
     console.log('ctrl + c to exit');
 });
-
+let processArgs;
 client.on('messageCreate', message => {
   if (!message.content.startsWith('+') || message.author.bot) return;
 
@@ -30,9 +31,9 @@ client.on('messageCreate', message => {
   const commandName = args.shift().toLowerCase();
 
   if (commandName === 'summoner') {
-    const summonerName = args.join(' '); // Join the args back in case the summoner name has spaces
+    const summonerName = args.join(' '); 
     summonerNames.set(message.author.id, { summonerName: summonerName, userId: message.author.id });
-    
+    processArgs = summonerName;
   }
   const command = client.commands.get(commandName);
 
@@ -61,12 +62,10 @@ client.on('interactionCreate', async interaction => {
   try {
     await interaction.deferUpdate();
     // Use the stored summonerName from the map
-    const { summonerName } = summonerDataStored;
     const championsData = await getChampionsData();
-
     //User PUUID (Match V5 cannot use ID needs PUUID) 
     const region = 'na1'; //bruteforced. 
-    const summonerData = await fetchSummonerData(summonerName, process.env.RIOT_API_KEY, region);
+    const summonerData = await fetchSummonerData(processArgs, process.env.RIOT_API_KEY, region);
     const puuid = summonerData.puuid;
     const matchHistoryData = await fetchMatchHistory(puuid, process.env.RIOT_API_KEY, region);
     //Canvas
