@@ -8,7 +8,8 @@ module.exports = {
   fetchRankedData,
   getChampionsData,
   getRankedIconUrl,
-  fetchPlayerStatus
+  fetchPlayerStatus,
+  fetchLatestMatchDetails
 };
 const queueIdMap = {
     400: 'Normal Draft',
@@ -111,6 +112,58 @@ async function getMatchlistByPuuid(puuid, apiKey) {
     return await response.json();
   }
 
+  async function fetchLatestMatchDetails(puuid, apiKey, region) {
+    try {
+        // Fetch the list of match IDs
+        const matchIds = await getMatchlistByPuuid(puuid, apiKey);
+        if (matchIds.length === 0) {
+            throw new Error("No matches found for this player.");
+        }
+
+        // Fetch details of the latest match only
+        const latestMatchId = matchIds[0];
+        const latestMatchDetails = await getMatchDetails(latestMatchId, apiKey, region);
+
+       
+        const participant = latestMatchDetails.info.participants.find(p => p.puuid === puuid);
+
+        
+        if (!participant) {
+            return;
+        }
+
+        // Determine the outcome
+        const team = latestMatchDetails.info.teams.find(t => t.teamId === participant.teamId);
+        const outcome = team && team.win ? 'Win' : 'Loss';
+
+        // Extract additional information
+        return {
+            gameId: latestMatchDetails.info.gameId,
+            championName: participant.championName,
+            kills: participant.kills,
+            deaths: participant.deaths,
+            assists: participant.assists,
+            cs: participant.totalMinionsKilled, // Creep Score
+            items: [ // Items built
+                participant.item0,
+                participant.item1,
+                participant.item2,
+                participant.item3,
+                participant.item4,
+                participant.item5,
+                participant.item6,
+            ],
+            participants: latestMatchDetails.info.participants.map(p => ({ // All participants
+                username: p.summonerName,
+                champion: p.championName
+            })),
+            outcome: outcome
+        };
+    } catch (error) {
+        console.error(`Error fetching latest match details: ${error}`);
+        throw error;
+    }
+}
 
   //Match history 
 async function fetchMatchHistory(puuid, apiKey, region) {

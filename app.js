@@ -51,7 +51,6 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.isButton() || interaction.customId !== 'match_history') return;
   
   const collectorObject = client.messageCollectors.get(interaction.message.id);
-  const summonerDataStored = summonerNames.get(interaction.user.id);
   const userIdAllowed = collectorObject ? collectorObject.userId : null;
   //User pressed is the same. 
   if (!userIdAllowed || interaction.user.id !== userIdAllowed) {

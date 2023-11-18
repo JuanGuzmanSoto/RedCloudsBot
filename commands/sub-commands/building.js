@@ -84,19 +84,17 @@ function fitTextOnCanvas(ctx,text,maxWidth,x,y,minFontSize=12){
 //MatchHistoryCanvas
 async function createMatchHistoryCanvas(matchHistoryData, championsData) {
     // Constants for layout
-    const sectionHeight = 140; // The height of each match section, increased to accommodate more text
-    const spacing = 10; // Spacing between each match section
-    const canvasWidth = 800; // Width of the canvas
+    const sectionHeight = 140; 
+    const spacing = 10; 
+    const canvasWidth = 800;
 
-    // Calculate the total height of the canvas
-    const canvasHeight = (sectionHeight + spacing) * matchHistoryData.length + spacing; // Extra spacing for the top
+    const canvasHeight = (sectionHeight + spacing) * matchHistoryData.length + spacing; 
 
-    // Create the canvas
     const canvas = Canvas.createCanvas(canvasWidth, canvasHeight);
     const ctx = canvas.getContext('2d');
 
-    // Set a background color
-    ctx.fillStyle = '#000000'; // Discord dark theme background color
+    
+    ctx.fillStyle = '#000000'; 
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     // Set text style
@@ -104,17 +102,17 @@ async function createMatchHistoryCanvas(matchHistoryData, championsData) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
 
-    // Iterate over each match to draw sections
+   
     for (let i = 0; i < matchHistoryData.length; i++) {
         const match = matchHistoryData[i];
         const yPosition = i * (sectionHeight + spacing) + spacing;
 
-        // Draw section background based on win/loss
+        
         ctx.fillStyle = match.outcome === 'Win' ? '#4169e1' : '#800000';
         ctx.fillRect(spacing, yPosition, canvasWidth - (spacing * 2), sectionHeight);
 
         // Load the champion icon
-        const championKey = match.championName.replace(/\s+/g, ''); // Remove whitespace for champion names like "Lee Sin"
+        const championKey = match.championName.replace(/\s+/g, ''); 
         const championIconUrl = `http://ddragon.leagueoflegends.com/cdn/11.24.1/img/champion/${championKey}.png`;
         const timestamp = match.timestamp ? new Date(match.timestamp).toLocaleString() : 'Unknown';
         try {
@@ -123,12 +121,12 @@ async function createMatchHistoryCanvas(matchHistoryData, championsData) {
             ctx.drawImage(championIcon, spacing * 2, yPosition + (sectionHeight - iconSize) / 2, iconSize, iconSize);
         } catch (error) {
             console.error('Error loading champion icon:', error);
-            // Handle the error, perhaps with a placeholder image or error message
+           
         }
 
         // Draw the match text
-        const textX = spacing * 2 + 130; // Adjust text start after icon
-        ctx.fillStyle = '#FFFFFF'; // White text color
+        const textX = spacing * 2 + 130; 
+        ctx.fillStyle = '#FFFFFF'; 
         ctx.fillText(`Game ID: ${match.gameId}`, textX, yPosition + 35);
         ctx.fillText(`Champion: ${match.championName}`, textX, yPosition + 70);
         ctx.fillText(`KDA: ${match.kills}/${match.deaths}/${match.assists}`, textX, yPosition + 105);
@@ -152,11 +150,11 @@ async function createProfileEmbed(summonerData, soloDuoStats, championsData, api
     const summonerIconUrl = `https://ddragon.leagueoflegends.com/cdn/13.22.1/img/profileicon/${summonerData.profileIconId}.png`;
     const rankIconUrl = getRankedIconUrl(soloDuoStats.tier);
   
-    // Create combined image buffer
+    
     const combinedImageBuffer = await createSummonerProfileCanvas(summonerIconUrl, rankIconUrl, topChampionIconUrls, summonerData, soloDuoStats);
     const attachment = new AttachmentBuilder(combinedImageBuffer, { name: 'profile-image.png' });
   
-    // Create profile embed
+   
     const profileEmbed = new EmbedBuilder()
       .setColor('#000000')
       .setTitle(`${summonerData.name}'s Profile`)
@@ -177,8 +175,8 @@ async function createProfileEmbed(summonerData, soloDuoStats, championsData, api
             const queueType = match.queueType || 'Unknown';
             const timestamp = match.timestamp ? new Date(match.timestamp) : new Date();
 
-            // Set color based on outcome
-            const color = outcome === 'Win' ? 0x4169e1 : 0x800000; // Hexadecimal color format
+            
+            const color = outcome === 'Win' ? 0x4169e1 : 0x800000; 
 
             const embed = new EmbedBuilder()
                 .setColor(color)

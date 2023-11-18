@@ -43,9 +43,10 @@ module.exports = {
         }
         const apiKey = process.env.RIOT_API_KEY;
         const region = 'na1';
+        const summonerData = await fetchSummonerData(processedArgs, apiKey, region);
         
     try {
-        const summonerData = await fetchSummonerData(processedArgs, apiKey, region);
+        
         const summonerIconUrl = `https://ddragon.leagueoflegends.com/cdn/13.22.1/img/profileicon/${summonerData.profileIconId}.png`;
         const activeGameData = await fetchPlayerStatus(summonerData.id, apiKey, region);
 
@@ -65,7 +66,7 @@ module.exports = {
                       value: `Champion: ${championData[participant.championId].name}
                       Spells: ${spell1}/${spell2} 
                       Team: ${team}`,
-                      inline: true // Setting inline to false to ensure readability
+                      inline: true 
                     };
                   });
                     const championImageURL = playerChampionData.iconUrl;
@@ -80,21 +81,21 @@ module.exports = {
                             { name: 'Queue Type', value: queueType, inline: true },
                         );
                     message.channel.send({ embeds: [embed] });
-                    const canvas = createCanvas(325, 525); // Example size
+                    const canvas = createCanvas(325, 525); 
                     const ctx = canvas.getContext('2d');
 
-                    const championIconSize = 64; // Size of each champion icon
-                    const spellIconSize = 32; // Size for summoner spell icons, smaller than champion icons
+                    const championIconSize = 64; 
+                    const spellIconSize = 32;
                     const rankIconSize = 48;
                     const spacingX = 10; // Horizontal spacing between icons
                     const spacingY = 10; // Vertical spacing between icons
                     const canvasWidth = 500; // Width of your canvas
-                    const columnWidth = canvasWidth / 2; // Width of each column (half the canvas)
-                    const blueTeamX = 0; // X position for blue team (left column)
-                    const redTeamX = columnWidth + spacingX; // X position for red team (right column), add some spacing if needed
+                    const columnWidth = canvasWidth / 2; 
+                    const blueTeamX = 0; 
+                    const redTeamX = columnWidth + spacingX; 
                     
-                    let blueTeamY = 14; // Starting Y position for blue team
-                    let redTeamY = 14; // Starting Y position for red team
+                    let blueTeamY = 14; 
+                    let redTeamY = 14; 
                     const blueTeamColor = '#4169e1';
                     const redTeamColor = '#800000';
                     ctx.globalAlpha = 0.3;
@@ -106,7 +107,7 @@ module.exports = {
                     ctx.globalAlpha = 1.0;
                     
                     // Load and draw images for each participant
-                    ctx.font = '14px league'; // Choose a font size that fits well above the champion icons
+                    ctx.font = '14px league';
                     ctx.textAlign = 'center';
                     ctx.fillStyle = 'white';
                     for (const participant of activeGameData.participants) {
@@ -150,7 +151,7 @@ module.exports = {
                         }
                     }
             
-                    // Convert canvas to a buffer and attach to message
+                    
                     const attachment = new AttachmentBuilder(canvas.toBuffer(), 'game-info.png');
             
                     message.channel.send({ files: [attachment] });
@@ -170,27 +171,16 @@ module.exports = {
 }
 
 function calculateGameDuration(gameStartTime) {
-    // gameStartTime is usually provided in epoch milliseconds
+    
     const startTime = new Date(gameStartTime); 
-    const currentTime = new Date(); // Current time
+    const currentTime = new Date(); 
 
-    // Calculate the difference in milliseconds
+    
     const durationMillis = currentTime - startTime;
 
-    // Convert milliseconds to minutes and seconds
+    
     const minutes = Math.floor(durationMillis / 60000);
     const seconds = ((durationMillis % 60000) / 1000).toFixed(0);
 
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds} minutes`;
-}
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function fetchImageData(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.statusText}`);
-    }
-    return response.buffer();
 }
